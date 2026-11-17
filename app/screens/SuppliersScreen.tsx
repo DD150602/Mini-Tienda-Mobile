@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Screen, styles } from "../components/Screen";
 import { COLORS } from "../constants/theme";
-import { api, unwrapList } from "../services/api";
+import { api, money, unwrapList } from "../services/api";
 type Supplier = { nombre: string; empresa: string; telefono: string };
 const empty: Supplier = { nombre: "", empresa: "", telefono: "" };
 export function SuppliersScreen() {

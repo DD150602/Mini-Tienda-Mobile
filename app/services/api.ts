@@ -9,6 +9,7 @@ export async function api<T = any>(
 ): Promise<T> {
   const response = await expoFetch(`${API_BASE}${path}`, {
     ...options,
+    credentials: "include",
     headers: {
       Accept: "application/json",
       ...(options.body instanceof FormData

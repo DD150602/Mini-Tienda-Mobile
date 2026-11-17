@@ -28,6 +28,7 @@ export function SuppliersScreen() {
   const [detailError, setDetailError] = useState("");
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<Supplier>(empty);
+  const [search, setSearch] = useState("");
   const load = useCallback(async () => {
     setError("");
     try {
@@ -57,6 +58,8 @@ export function SuppliersScreen() {
   useEffect(() => {
     load();
   }, [load]);
+  const filteredItems = items.filter((supplier) => `${supplier.nombre} ${supplier.empresa} ${supplier.telefono}`.toLowerCase().includes(search.toLowerCase()));
+  const totalOrders = items.reduce((total, supplier) => total + Number(supplier.totalPedidos || 0), 0);
   const open = (s?: any) => {
     setEditing(s ?? null);
     setForm(
@@ -145,15 +148,16 @@ export function SuppliersScreen() {
         refreshing={loading}
         onRefresh={load}
       >
-        <View style={{ flexDirection: "row", gap: 8, marginTop: 18 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 18 }}>
           {[
             ["Proveedores", stats.totalProveedores ?? items.length],
             ["Activos", stats.proveedoresActivos ?? 0],
-            ["Pedidos", stats.pedidosMes ?? 0],
+            ["Pedidos totales", totalOrders],
+            ["Este mes", stats.pedidosMes ?? 0],
           ].map(([label, val]) => (
             <View
               key={String(label)}
-              style={[styles.card, { flex: 1, padding: 11 }]}
+              style={[styles.card, { width: "47%", flexGrow: 1, padding: 11 }]}
             >
               <Text style={{ color: COLORS.muted, fontSize: 10 }}>{label}</Text>
               <Text
@@ -179,10 +183,14 @@ export function SuppliersScreen() {
           <Ionicons name="add" size={19} color="white" />
           <Text style={styles.buttonText}>Nuevo proveedor</Text>
         </Pressable>
+        <View style={[styles.card, { marginTop: 14, flexDirection: "row", alignItems: "center", gap: 9, padding: 11 }]}>
+          <Ionicons name="search-outline" size={18} color={COLORS.muted} />
+          <TextInput value={search} onChangeText={setSearch} placeholder="Buscar proveedor" placeholderTextColor={COLORS.muted} style={{ flex: 1, color: COLORS.text, paddingVertical: 3 }} />
+        </View>
         <Text style={styles.section}>Lista de proveedores</Text>
         {loading ? <ActivityIndicator color={COLORS.primary} /> : null}
         {error ? <Text style={{ color: COLORS.red }}>{error}</Text> : null}
-        {items.map((s) => (
+        {filteredItems.map((s) => (
           <View
             key={s.id}
             style={[styles.card, { marginBottom: 10, padding: 14 }]}
@@ -222,15 +230,10 @@ export function SuppliersScreen() {
                   {s.empresa || "Sin contacto"} · {s.telefono}
                 </Text>
               </View>
-              <Text
-                style={{
-                  color: COLORS.primary,
-                  fontWeight: "700",
-                  fontSize: 11,
-                }}
-              >
-                {s.totalPedidos} ped.
-              </Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={{ color: COLORS.primary, fontWeight: "700", fontSize: 11 }}>{s.totalPedidos} ped.</Text>
+                <Text style={{ color: Number(s.totalPedidos) > 0 ? COLORS.primary : COLORS.muted, fontSize: 10, marginTop: 3 }}>{Number(s.totalPedidos) > 0 ? "Activo" : "Inactivo"}</Text>
+              </View>
             </View>
             <View style={{ flexDirection: "row", gap: 18, marginTop: 12 }}>
               <Pressable onPress={() => openDetails(s)}>
@@ -265,9 +268,9 @@ export function SuppliersScreen() {
             </View>
           </View>
         ))}
-        {!loading && !items.length && !error ? (
+        {!loading && !filteredItems.length && !error ? (
           <Text style={{ color: COLORS.muted }}>
-            No hay proveedores registrados.
+            {search ? "No se encontraron proveedores." : "No hay proveedores registrados."}
           </Text>
         ) : null}
       </Screen>

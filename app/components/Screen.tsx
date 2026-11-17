@@ -1,6 +1,7 @@
 import React from "react";
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/theme";
+import { useAuth } from "../context/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
 
 export function Screen({
   title,
@@ -23,6 +26,7 @@ export function Screen({
   refreshing?: boolean;
   onRefresh?: () => void;
 }) {
+  const { logout } = useAuth();
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScrollView
@@ -43,9 +47,9 @@ export function Screen({
             <Text style={s.brand}>VARIEDADES DAKOTA</Text>
             <Text style={s.caption}>Sistema de gestión</Text>
           </View>
-          <View style={s.avatar}>
-            <Text style={s.avatarText}>D</Text>
-          </View>
+          <Pressable onPress={() => void logout()} style={s.avatar} accessibilityLabel="Cerrar sesión">
+            <Ionicons name="log-out-outline" size={20} color={COLORS.primaryDark} />
+          </Pressable>
         </View>
         <Text style={s.title}>{title}</Text>
         <Text style={s.subtitle}>{subtitle}</Text>

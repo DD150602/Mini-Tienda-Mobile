@@ -13,9 +13,11 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { Screen, styles } from "../components/Screen";
 import { COLORS } from "../constants/theme";
 import { api, money, unwrapList } from "../services/api";
+import { findLocalBarcodeProduct, saveLocalBarcodeProduct } from "../services/mockBarcodeCatalog";
 
 export function OrdersScreen() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -28,6 +30,11 @@ export function OrdersScreen() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [image, setImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [creating, setCreating] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [barcode, setBarcode] = useState("");
+  const [scanHandled, setScanHandled] = useState(false);
+  const [localProductFound, setLocalProductFound] = useState(false);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [form, setForm] = useState({
@@ -65,6 +72,8 @@ export function OrdersScreen() {
       setSuppliers(unwrapList(s, "proveedores"));
       setCategories(unwrapList(c, "categories"));
       setImage(null);
+      setBarcode("");
+      setLocalProductFound(false);
       setForm({
         proveedor_id: "",
         nombre: "",
@@ -77,6 +86,48 @@ export function OrdersScreen() {
     } catch (e: any) {
       Alert.alert("No se pudo abrir formulario", e.message);
     }
+  };
+  const resolveLocalBarcode = (rawCode: string) => {
+    const code = rawCode.trim();
+    if (!code) return;
+    setBarcode(code);
+    const product = findLocalBarcodeProduct(code);
+    if (!product) {
+      setLocalProductFound(false);
+      setScannerOpen(false);
+      Alert.alert("Código nuevo", "No está en el catálogo local de prueba. Completa los datos y guárdalo localmente para volver a probar el escaneo.");
+      return;
+    }
+    setLocalProductFound(true);
+    setForm((current) => ({
+      ...current,
+      nombre: product.nombre,
+      descripcion: product.descripcion,
+      categoria_id: product.categoria_id || current.categoria_id || String(categories[0]?.categoria_id ?? ""),
+      precio: product.precio,
+      stock: current.stock || "1",
+    }));
+    setScannerOpen(false);
+  };
+  const openBarcodeScanner = async () => {
+    setScanHandled(false);
+    if (!cameraPermission?.granted) {
+      const permission = await requestCameraPermission();
+      if (!permission.granted) {
+        Alert.alert("Permiso de cámara", "Permite el acceso a la cámara para escanear códigos de barras.");
+        return;
+      }
+    }
+    setScannerOpen(true);
+  };
+  const registerLocalBarcode = () => {
+    if (!barcode || !form.nombre.trim() || !form.precio || !form.categoria_id) {
+      Alert.alert("Faltan datos", "Escanea un código nuevo y completa nombre, categoría y precio para guardarlo en el catálogo local.");
+      return;
+    }
+    saveLocalBarcodeProduct({ barcode, nombre: form.nombre.trim(), descripcion: form.descripcion.trim(), precio: form.precio, categoria_id: form.categoria_id });
+    setLocalProductFound(true);
+    Alert.alert("Guardado local", "El código quedó disponible en este dispositivo mientras la app siga abierta. No se envió al backend.");
   };
   const openDetails = async (id: number) => {
     setDetailLoading(true);
@@ -398,6 +449,15 @@ export function OrdersScreen() {
             "id",
             "nombre",
           )}
+          <Pressable onPress={openBarcodeScanner} style={[styles.card, { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, padding: 12, marginBottom: 12, borderColor: COLORS.primary }]}>
+            <Ionicons name="barcode-outline" size={21} color={COLORS.primary} />
+            <Text style={{ color: COLORS.primary, fontWeight: "800" }}>Escanear código de barras</Text>
+          </Pressable>
+          {barcode ? <View style={{ backgroundColor: localProductFound ? "#E5EEF9" : "#FFF6E5", borderRadius: 12, padding: 11, marginBottom: 12 }}>
+            <Text style={{ color: COLORS.text, fontSize: 12 }}>Código leído: {barcode}</Text>
+            <Text style={{ color: localProductFound ? COLORS.primary : "#946200", fontSize: 11, marginTop: 4 }}>{localProductFound ? "Producto cargado desde catálogo local de prueba" : "Código nuevo: completa los datos para registrarlo localmente"}</Text>
+          </View> : null}
+          <Text style={{ color: COLORS.muted, fontSize: 11, marginBottom: 10 }}>Escáner y catálogo son locales. “Crear pedido” conserva el envío actual al servidor.</Text>
           {field("nombre", "Nombre del producto")}
           {field("descripcion", "Descripción", "default", true)}
           {selectValue(
@@ -416,6 +476,7 @@ export function OrdersScreen() {
               {field("stock", "Cantidad", "number-pad")}
             </View>
           </View>
+          {barcode && !localProductFound ? <Pressable onPress={registerLocalBarcode} style={[styles.card, { alignItems: "center", padding: 12, marginBottom: 14, borderColor: COLORS.primary }]}><Text style={{ color: COLORS.primary, fontWeight: "700" }}>Guardar código en catálogo local</Text></Pressable> : null}
           <Text style={{ color: COLORS.muted, fontSize: 12, marginBottom: 8 }}>Imagen del producto (opcional)</Text>
           {image ? <Image source={{ uri: image.uri }} resizeMode="cover" style={{ height: 170, borderRadius: 16, marginBottom: 10 }} /> : null}
           <View style={{ flexDirection: "row", gap: 9, marginBottom: 14 }}>
@@ -429,6 +490,28 @@ export function OrdersScreen() {
             <Text style={styles.buttonText}>{creating ? "Creando pedido…" : "Crear pedido"}</Text>
           </Pressable>
         </ScrollView>
+      </Modal>
+      <Modal visible={scannerOpen} animationType="slide" onRequestClose={() => setScannerOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: "#101828", paddingTop: 48, paddingHorizontal: 18, paddingBottom: 24 }}>
+          <View style={[styles.row, { marginBottom: 16 }]}>
+            <Text style={{ color: "#fff", fontSize: 20, fontWeight: "800" }}>Escanear código</Text>
+            <Pressable onPress={() => setScannerOpen(false)}><Ionicons name="close" size={26} color="#fff" /></Pressable>
+          </View>
+          {cameraPermission?.granted ? <View style={{ height: 320, overflow: "hidden", borderRadius: 18 }}>
+            <CameraView
+              style={{ flex: 1 }}
+              active={scannerOpen}
+              facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e", "code128", "code39", "qr"] }}
+              onBarcodeScanned={scanHandled ? undefined : ({ data }) => { setScanHandled(true); resolveLocalBarcode(data); }}
+            />
+            <View pointerEvents="none" style={{ position: "absolute", left: "9%", right: "9%", top: "34%", height: 100, borderWidth: 2, borderColor: COLORS.sky, borderRadius: 12 }} />
+          </View> : <View style={{ height: 220, alignItems: "center", justifyContent: "center" }}><Text style={{ color: "#fff", textAlign: "center", marginBottom: 14 }}>Se necesita permiso para usar la cámara.</Text><Pressable onPress={openBarcodeScanner} style={styles.button}><Text style={styles.buttonText}>Permitir cámara</Text></Pressable></View>}
+          <Text style={{ color: "#fff", fontWeight: "700", marginTop: 18, marginBottom: 8 }}>Prueba también escribiendo un código</Text>
+          <TextInput value={barcode} onChangeText={setBarcode} placeholder="Ej. 2001234567894" placeholderTextColor="#AAB2C0" keyboardType="number-pad" style={[styles.input, { backgroundColor: "#fff" }]} />
+          <Pressable onPress={() => resolveLocalBarcode(barcode)} style={[styles.button, { marginTop: 10 }]}><Text style={styles.buttonText}>Buscar en catálogo local</Text></Pressable>
+          <Text style={{ color: "#B8C0CC", fontSize: 11, marginTop: 12, textAlign: "center" }}>Códigos de demostración: 2001234567894 · 2000000000015</Text>
+        </View>
       </Modal>
       <Modal visible={detailOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailOpen(false)}>
         <ScrollView style={{ flex: 1, backgroundColor: COLORS.background }} contentContainerStyle={{ padding: 20, paddingTop: 28, paddingBottom: 36 }}>

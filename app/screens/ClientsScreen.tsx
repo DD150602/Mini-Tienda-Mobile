@@ -35,6 +35,7 @@ export function ClientsScreen() {
   const [form, setForm] = useState<ClientForm>(empty);
   const [amount, setAmount] = useState("");
   const [saldoClient, setSaldoClient] = useState<any>(null);
+  const [saldoType, setSaldoType] = useState<"cobrar" | "fiar">("cobrar");
   const load = useCallback(async () => {
     setError("");
     try {
@@ -58,6 +59,8 @@ export function ClientsScreen() {
       ),
     [clients, search],
   );
+  const clientsWithDebt = clients.filter((client) => Number(client.saldo) > 0).length;
+  const totalDebt = clients.reduce((sum, client) => sum + Math.max(0, Number(client.saldo) || 0), 0);
   const save = async () => {
     if (!form.nombre.trim() || !form.telefono.trim()) {
       Alert.alert("Campos requeridos", "Nombre y teléfono son obligatorios.");
@@ -180,6 +183,14 @@ export function ClientsScreen() {
             style={{ flex: 1, color: COLORS.text, paddingVertical: 3 }}
           />
         </View>
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+          {[["Total", clients.length], ["Con deuda", clientsWithDebt], ["Deuda", money(totalDebt)]].map(([label, value]) => (
+            <View key={String(label)} style={[styles.card, { flex: 1, padding: 11 }]}>
+              <Text style={{ color: COLORS.muted, fontSize: 10 }}>{label}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: COLORS.navy, fontSize: 15, fontWeight: "800", marginTop: 4 }}>{value}</Text>
+            </View>
+          ))}
+        </View>
         <View style={[styles.row, { marginTop: 16 }]}>
           <Text style={styles.section}>Clientes ({filtered.length})</Text>
           <Pressable
@@ -240,6 +251,7 @@ export function ClientsScreen() {
                   {c.telefono}
                   {c.correo ? ` · ${c.correo}` : ""}
                 </Text>
+                {c.direccion ? <Text numberOfLines={1} style={{ color: COLORS.muted, fontSize: 11, marginTop: 3 }}>{c.direccion}</Text> : null}
               </View>
               <View style={{ alignItems: "flex-end" }}>
                 <Text style={{ color: COLORS.muted, fontSize: 10 }}>Saldo</Text>
@@ -260,6 +272,7 @@ export function ClientsScreen() {
                 onPress={() => {
                   setSaldoClient(c);
                   setAmount("");
+                  setSaldoType(Number(c.saldo) > 0 ? "cobrar" : "fiar");
                 }}
                 style={{
                   backgroundColor: "#E5EEF9",
@@ -367,6 +380,9 @@ export function ClientsScreen() {
             <Text style={{ color: COLORS.muted, marginBottom: 12 }}>
               Saldo actual: {money(saldoClient?.saldo)}
             </Text>
+            <View style={{ flexDirection: "row", gap: 9, marginBottom: 12 }}>
+              {(["cobrar", "fiar"] as const).map((type) => <Pressable key={type} onPress={() => setSaldoType(type)} style={{ flex: 1, padding: 10, borderRadius: 10, backgroundColor: saldoType === type ? COLORS.primary : "#E5EEF9", alignItems: "center" }}><Text style={{ color: saldoType === type ? "#fff" : COLORS.navy, fontWeight: "700" }}>{type === "cobrar" ? "Cobrar" : "Fiar"}</Text></Pressable>)}
+            </View>
             <TextInput
               value={amount}
               onChangeText={setAmount}
@@ -375,21 +391,19 @@ export function ClientsScreen() {
               placeholderTextColor={COLORS.muted}
               style={[styles.input, { marginBottom: 14 }]}
             />
+            {Number(amount) > 0 ? <Text style={{ color: COLORS.muted, marginBottom: 12 }}>Nuevo saldo: {money(saldoType === "cobrar" ? Math.max(0, Number(saldoClient?.saldo || 0) - Number(amount)) : Number(saldoClient?.saldo || 0) + Number(amount))}</Text> : null}
             <View style={{ flexDirection: "row", gap: 9 }}>
               <Pressable
-                onPress={() => saldo("cobrar")}
-                style={[styles.button, { flex: 1 }]}
+                onPress={() => { setSaldoClient(null); setAmount(""); }}
+                style={[styles.button, { flex: 1, backgroundColor: COLORS.muted }]}
               >
-                <Text style={styles.buttonText}>Cobrar</Text>
+                <Text style={styles.buttonText}>Cancelar</Text>
               </Pressable>
               <Pressable
-                onPress={() => saldo("fiar")}
-                style={[
-                  styles.button,
-                  { flex: 1, backgroundColor: COLORS.navy },
-                ]}
+                onPress={() => saldo(saldoType)}
+                style={[styles.button, { flex: 1, backgroundColor: saldoType === "cobrar" ? COLORS.primary : COLORS.navy }]}
               >
-                <Text style={styles.buttonText}>Fiar</Text>
+                <Text style={styles.buttonText}>Confirmar {saldoType}</Text>
               </Pressable>
             </View>
           </View>

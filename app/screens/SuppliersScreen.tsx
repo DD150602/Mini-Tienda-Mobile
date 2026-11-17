@@ -4,6 +4,7 @@ import {
   Alert,
   Modal,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -20,6 +21,11 @@ export function SuppliersScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modal, setModal] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [supplierOrders, setSupplierOrders] = useState<any[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<Supplier>(empty);
   const load = useCallback(async () => {
@@ -63,6 +69,27 @@ export function SuppliersScreen() {
         : empty,
     );
     setModal(true);
+  };
+  const openDetails = async (supplier: any) => {
+    setSelectedSupplier(supplier);
+    setSupplierOrders([]);
+    setDetailError("");
+    setDetailLoading(true);
+    setDetailOpen(true);
+    try {
+      const response = await api<any>("/pedidos");
+      const orders = unwrapList<any>(response, "pedidos").filter(
+        (order) =>
+          String(order.proveedor_id ?? order.provider_id ?? "") ===
+            String(supplier.id) ||
+          (order.nombre_proveedor || order.nombre) === supplier.nombre,
+      );
+      setSupplierOrders(orders);
+    } catch (e: any) {
+      setDetailError(e.message || "No se pudo cargar el historial.");
+    } finally {
+      setDetailLoading(false);
+    }
   };
   const save = async () => {
     if (!form.nombre.trim() || !form.telefono.trim()) {
@@ -206,6 +233,17 @@ export function SuppliersScreen() {
               </Text>
             </View>
             <View style={{ flexDirection: "row", gap: 18, marginTop: 12 }}>
+              <Pressable onPress={() => openDetails(s)}>
+                <Text
+                  style={{
+                    color: COLORS.navy,
+                    fontSize: 11,
+                    fontWeight: "700",
+                  }}
+                >
+                  Ver detalle
+                </Text>
+              </Pressable>
               <Pressable onPress={() => open(s)}>
                 <Text
                   style={{
@@ -267,6 +305,78 @@ export function SuppliersScreen() {
           </Pressable>
         </View>
       </Modal>
+      <Modal
+        visible={detailOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setDetailOpen(false)}
+      >
+        <ScrollView
+          style={{ flex: 1, backgroundColor: COLORS.background }}
+          contentContainerStyle={{ padding: 20, paddingTop: 28, paddingBottom: 36 }}
+        >
+          <View style={[styles.row, { marginBottom: 18 }]}>
+            <Text style={{ fontSize: 22, fontWeight: "800", color: COLORS.text }}>
+              Proveedor
+            </Text>
+            <Pressable onPress={() => setDetailOpen(false)}>
+              <Ionicons name="close" size={24} color={COLORS.text} />
+            </Pressable>
+          </View>
+          {selectedSupplier ? (
+            <>
+              <View style={styles.card}>
+                <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: "800" }}>
+                  {selectedSupplier.nombre}
+                </Text>
+                <SupplierDetailRow label="Contacto" value={selectedSupplier.empresa || "Sin contacto"} />
+                <SupplierDetailRow label="Teléfono" value={selectedSupplier.telefono || "—"} />
+                <SupplierDetailRow label="Pedidos registrados" value={String(selectedSupplier.totalPedidos ?? 0)} />
+                <SupplierDetailRow label="Estado" value={Number(selectedSupplier.totalPedidos) > 0 ? "Activo" : "Inactivo"} />
+              </View>
+              <Text style={styles.section}>Historial de pedidos</Text>
+              {detailLoading ? <ActivityIndicator color={COLORS.primary} /> : null}
+              {detailError ? <Text style={{ color: COLORS.red, marginBottom: 12 }}>{detailError}</Text> : null}
+              {!detailLoading && !detailError && supplierOrders.length === 0 ? (
+                <View style={styles.card}>
+                  <Text style={{ color: COLORS.muted, fontSize: 13 }}>
+                    Este proveedor aún no tiene pedidos.
+                  </Text>
+                </View>
+              ) : null}
+              {supplierOrders.map((order) => (
+                <View key={order.id} style={[styles.card, { marginBottom: 10, padding: 14 }]}>
+                  <View style={styles.row}>
+                    <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: "800" }}>
+                      Pedido #{order.id}
+                    </Text>
+                    <Text style={{ color: order.estado === "recibido" ? COLORS.primary : "#A36C16", fontSize: 11, fontWeight: "700" }}>
+                      {order.estado}
+                    </Text>
+                  </View>
+                  <View style={[styles.row, { marginTop: 8 }]}>
+                    <Text style={{ color: COLORS.muted, fontSize: 11 }}>
+                      {order.fecha ? new Date(order.fecha).toLocaleDateString("es-CO") : "Fecha sin dato"}
+                    </Text>
+                    <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: "800" }}>
+                      {money(order.total)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </>
+          ) : null}
+        </ScrollView>
+      </Modal>
     </>
+  );
+}
+
+function SupplierDetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 16, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
+      <Text style={{ color: COLORS.muted, fontSize: 12 }}>{label}</Text>
+      <Text style={{ color: COLORS.text, fontSize: 12, fontWeight: "700", flexShrink: 1, textAlign: "right" }}>{value}</Text>
+    </View>
   );
 }

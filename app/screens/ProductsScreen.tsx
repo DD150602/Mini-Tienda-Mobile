@@ -1,25 +1,451 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { Screen, styles } from '../components/Screen';
-import { COLORS } from '../constants/theme';
-import { api, money, unwrapList } from '../services/api';
-type ProductForm={nombre:string;categoria_id:string;precio:string;stock:string;descripcion:string};const empty:ProductForm={nombre:'',categoria_id:'',precio:'',stock:'',descripcion:''};
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { File } from "expo-file-system";
+import { Screen, styles } from "../components/Screen";
+import { COLORS } from "../constants/theme";
+import { api, money, unwrapList } from "../services/api";
+type ProductForm = {
+  nombre: string;
+  categoria_id: string;
+  precio: string;
+  stock: string;
+  descripcion: string;
+};
+const empty: ProductForm = {
+  nombre: "",
+  categoria_id: "",
+  precio: "",
+  stock: "",
+  descripcion: "",
+};
 export function ProductsScreen() {
- const [products,setProducts]=useState<any[]>([]);const [categories,setCategories]=useState<any[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [search,setSearch]=useState('');const [modal,setModal]=useState(false);const [editing,setEditing]=useState<any>(null);const [form,setForm]=useState<ProductForm>(empty);const [stats,setStats]=useState<any>({});const [image,setImage]=useState<ImagePicker.ImagePickerAsset|null>(null);const [uploading,setUploading]=useState(false);
- const load=useCallback(async()=>{setError('');try{const [p,s,c]=await Promise.all([api<any>('/products'),api<any>('/products/stats'),api<any>('/categories')]);setProducts(unwrapList(p,'products'));setStats(s?.stats??{});setCategories(unwrapList(c,'categories'));}catch(e:any){setError(e.message||'No se pudieron cargar productos.');}finally{setLoading(false);}},[]);useEffect(()=>{load();},[load]);
- const filtered=useMemo(()=>products.filter(p=>`${p.nombre} ${p.nombre_categoria} ${p.descripcion}`.toLowerCase().includes(search.toLowerCase())),[products,search]);
- const open=async(p:any)=>{try{const data=await api<any>(`/products/${p.id}`);const product=data?.product??data?.products??data;setEditing(product);setImage(null);setForm({nombre:product.nombre??'',categoria_id:String(product.categoria_id??''),precio:String(product.precio??''),stock:String(product.stock??''),descripcion:product.descripcion??''});setModal(true);}catch(e:any){Alert.alert('Error',e.message);}};
- const save=async()=>{if(!form.nombre||!form.categoria_id||!form.precio||!form.stock){Alert.alert('Faltan datos','Completa nombre, categoría, precio y stock.');return;}try{await api(`/products/${editing.id}`,{method:'PUT',body:JSON.stringify(form)});setModal(false);await load();}catch(e:any){Alert.alert('Error',e.message);}};
- const chooseImage=async()=>{const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],quality:0.8});if(!result.canceled)setImage(result.assets[0]);};
- const uploadImage=async()=>{if(!image||!editing?.id)return;setUploading(true);try{const body=new FormData();body.append('image',{uri:image.uri,name:image.fileName??`product-${editing.id}.jpg`,type:image.mimeType??'image/jpeg'} as any);const response=await api<any>(`/products/image/${editing.id}`,{method:'PUT',body});setEditing(response?.updatedProduct??{...editing,imagen_url:image.uri});setImage(null);await load();Alert.alert('Imagen actualizada','La foto del producto se actualizó correctamente.');}catch(e:any){Alert.alert('Error al subir imagen',e.message);}finally{setUploading(false);}};
- const field=(key:keyof ProductForm,placeholder:string,keyboardType:any='default')=><TextInput value={form[key]} onChangeText={v=>setForm(f=>({...f,[key]:v}))} placeholder={placeholder} placeholderTextColor={COLORS.muted} keyboardType={keyboardType} style={[styles.input,{marginBottom:10}]} />;
- return <><Screen title="Productos" subtitle="Inventario y disponibilidad." refreshing={loading} onRefresh={load}>
-  <View style={{flexDirection:'row',gap:8,marginTop:18}}><View style={[styles.card,{flex:1,padding:12}]}><Text style={{color:COLORS.muted,fontSize:10}}>Productos</Text><Text style={{color:COLORS.navy,fontSize:19,fontWeight:'800',marginTop:3}}>{stats.total_productos??products.length}</Text></View><View style={[styles.card,{flex:1,padding:12}]}><Text style={{color:COLORS.muted,fontSize:10}}>Bajo stock</Text><Text style={{color:COLORS.red,fontSize:19,fontWeight:'800',marginTop:3}}>{stats.bajo_stock??0}</Text></View><View style={[styles.card,{flex:1,padding:12}]}><Text style={{color:COLORS.muted,fontSize:10}}>Agotados</Text><Text style={{color:COLORS.text,fontSize:19,fontWeight:'800',marginTop:3}}>{stats.agotados??0}</Text></View></View>
-  <View style={[styles.card,{marginTop:14,flexDirection:'row',alignItems:'center',gap:9,padding:11}]}><Ionicons name="search-outline" size={18} color={COLORS.muted}/><TextInput value={search} onChangeText={setSearch} placeholder="Buscar producto" placeholderTextColor={COLORS.muted} style={{flex:1,color:COLORS.text,paddingVertical:3}}/></View>
-  <Text style={styles.section}>Inventario ({filtered.length})</Text>{loading?<ActivityIndicator color={COLORS.primary}/>:null}{error?<Text style={{color:COLORS.red,marginBottom:12}}>{error}</Text>:null}
-  {filtered.map((p,i)=><Pressable key={p.id} onPress={()=>open(p)} style={[styles.card,{marginBottom:10,padding:14,flexDirection:'row',alignItems:'center',gap:12}]}>{p.imagen_url?<Image source={{uri:p.imagen_url}} style={{width:50,height:50,borderRadius:14,backgroundColor:COLORS.background}}/>:<View style={{width:48,height:48,borderRadius:15,backgroundColor:i%2?'#E5EEF9':COLORS.sky,alignItems:'center',justifyContent:'center'}}><Ionicons name="cube-outline" size={22} color={i%2?COLORS.navy:COLORS.primary}/></View>}<View style={{flex:1}}><Text style={{color:COLORS.text,fontSize:13,fontWeight:'700'}}>{p.nombre}</Text><Text style={{color:COLORS.muted,fontSize:10,marginTop:4}}>{p.nombre_categoria||'Producto'} · Ref. {p.id}</Text><Text style={{color:Number(p.stock)<=5?COLORS.red:COLORS.muted,fontSize:10,marginTop:5}}>Stock: {p.stock}</Text></View><Text style={{color:COLORS.text,fontSize:12,fontWeight:'800'}}>{money(p.precio)}</Text></Pressable>)}
-  {!loading&&!filtered.length&&!error?<Text style={{color:COLORS.muted}}>No hay productos para mostrar.</Text>:null}
- </Screen><Modal visible={modal} animationType="slide" presentationStyle="pageSheet" onRequestClose={()=>setModal(false)}><ScrollView keyboardShouldPersistTaps="handled" style={{flex:1,backgroundColor:COLORS.background}} contentContainerStyle={{padding:20,paddingTop:28,paddingBottom:36}}><View style={[styles.row,{marginBottom:18}]}><Text style={{fontSize:22,fontWeight:'800',color:COLORS.text}}>Editar producto</Text><Pressable onPress={()=>setModal(false)}><Ionicons name="close" size={24} color={COLORS.text}/></Pressable></View>{editing?.imagen_url||image?.uri?<Image source={{uri:image?.uri??editing?.imagen_url}} resizeMode="cover" style={{height:170,borderRadius:18,marginBottom:12,backgroundColor:COLORS.border}}/>:null}<Pressable onPress={chooseImage} style={[styles.card,{marginBottom:16,padding:13,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,borderColor:COLORS.primary}]}><Ionicons name="image-outline" size={19} color={COLORS.primary}/><Text style={{color:COLORS.primary,fontSize:13,fontWeight:'700'}}>{image?'Cambiar foto seleccionada':'Seleccionar foto'}</Text></Pressable>{image?<Pressable onPress={uploadImage} disabled={uploading} style={[styles.button,{marginBottom:16,opacity:uploading?0.6:1}]}><Text style={styles.buttonText}>{uploading?'Subiendo imagen…':'Subir imagen'}</Text></Pressable>:null}{field('nombre','Nombre')}<Text style={{color:COLORS.muted,fontSize:12,marginBottom:8}}>Categoría</Text><View style={{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:14}}>{categories.map(category=><Pressable key={category.categoria_id} onPress={()=>setForm(f=>({...f,categoria_id:String(category.categoria_id)}))} style={{paddingHorizontal:12,paddingVertical:9,borderRadius:12,backgroundColor:form.categoria_id===String(category.categoria_id)?COLORS.primary:'#E5EEF9',borderWidth:1,borderColor:form.categoria_id===String(category.categoria_id)?COLORS.primary:COLORS.border}}><Text style={{color:form.categoria_id===String(category.categoria_id)?'#FFFFFF':COLORS.navy,fontSize:12,fontWeight:'600'}}>{category.nombre_categoria}</Text></Pressable>)}</View><View style={{flexDirection:'row',gap:8}}><View style={{flex:1}}>{field('precio','Precio','decimal-pad')}</View><View style={{flex:1}}>{field('stock','Stock','number-pad')}</View></View>{field('descripcion','Descripción')}<Pressable onPress={save} style={styles.button}><Text style={styles.buttonText}>Guardar cambios</Text></Pressable></ScrollView></Modal></>;
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState<ProductForm>(empty);
+  const [stats, setStats] = useState<any>({});
+  const [image, setImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const load = useCallback(async () => {
+    setError("");
+    try {
+      const [p, s, c] = await Promise.all([
+        api<any>("/products"),
+        api<any>("/products/stats"),
+        api<any>("/categories"),
+      ]);
+      setProducts(unwrapList(p, "products"));
+      setStats(s?.stats ?? {});
+      setCategories(unwrapList(c, "categories"));
+    } catch (e: any) {
+      setError(e.message || "No se pudieron cargar productos.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+  const filtered = useMemo(
+    () =>
+      products.filter((p) =>
+        `${p.nombre} ${p.nombre_categoria} ${p.descripcion}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+      ),
+    [products, search],
+  );
+  const open = async (p: any) => {
+    try {
+      const data = await api<any>(`/products/${p.id}`);
+      const product = data?.product ?? data?.products ?? data;
+      setEditing(product);
+      setImage(null);
+      setForm({
+        nombre: product.nombre ?? "",
+        categoria_id: String(product.categoria_id ?? ""),
+        precio: String(product.precio ?? ""),
+        stock: String(product.stock ?? ""),
+        descripcion: product.descripcion ?? "",
+      });
+      setModal(true);
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    }
+  };
+  const save = async () => {
+    if (!form.nombre || !form.categoria_id || !form.precio || !form.stock) {
+      Alert.alert(
+        "Faltan datos",
+        "Completa nombre, categoría, precio y stock.",
+      );
+      return;
+    }
+    try {
+      await api(`/products/${editing.id}`, {
+        method: "PUT",
+        body: JSON.stringify(form),
+      });
+      setModal(false);
+      await load();
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    }
+  };
+  const chooseImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled) setImage(result.assets[0]);
+  };
+  const uploadImage = async () => {
+    if (!image || !editing?.id) return;
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append("image", new File(image.uri));
+      const response = await api<any>(`/products/image/${editing.id}`, {
+        method: "PUT",
+        body,
+      });
+      setEditing(
+        response?.updatedProduct ?? { ...editing, imagen_url: image.uri },
+      );
+      setImage(null);
+      await load();
+      Alert.alert(
+        "Imagen actualizada",
+        "La foto del producto se actualizó correctamente.",
+      );
+    } catch (e: any) {
+      Alert.alert("Error al subir imagen", e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+  const field = (
+    key: keyof ProductForm,
+    placeholder: string,
+    keyboardType: any = "default",
+  ) => (
+    <TextInput
+      value={form[key]}
+      onChangeText={(v) => setForm((f) => ({ ...f, [key]: v }))}
+      placeholder={placeholder}
+      placeholderTextColor={COLORS.muted}
+      keyboardType={keyboardType}
+      style={[styles.input, { marginBottom: 10 }]}
+    />
+  );
+  return (
+    <>
+      <Screen
+        title="Productos"
+        subtitle="Inventario y disponibilidad."
+        refreshing={loading}
+        onRefresh={load}
+      >
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 18 }}>
+          <View style={[styles.card, { flex: 1, padding: 12 }]}>
+            <Text style={{ color: COLORS.muted, fontSize: 10 }}>Productos</Text>
+            <Text
+              style={{
+                color: COLORS.navy,
+                fontSize: 19,
+                fontWeight: "800",
+                marginTop: 3,
+              }}
+            >
+              {stats.total_productos ?? products.length}
+            </Text>
+          </View>
+          <View style={[styles.card, { flex: 1, padding: 12 }]}>
+            <Text style={{ color: COLORS.muted, fontSize: 10 }}>
+              Bajo stock
+            </Text>
+            <Text
+              style={{
+                color: COLORS.red,
+                fontSize: 19,
+                fontWeight: "800",
+                marginTop: 3,
+              }}
+            >
+              {stats.bajo_stock ?? 0}
+            </Text>
+          </View>
+          <View style={[styles.card, { flex: 1, padding: 12 }]}>
+            <Text style={{ color: COLORS.muted, fontSize: 10 }}>Agotados</Text>
+            <Text
+              style={{
+                color: COLORS.text,
+                fontSize: 19,
+                fontWeight: "800",
+                marginTop: 3,
+              }}
+            >
+              {stats.agotados ?? 0}
+            </Text>
+          </View>
+        </View>
+        <View
+          style={[
+            styles.card,
+            {
+              marginTop: 14,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 9,
+              padding: 11,
+            },
+          ]}
+        >
+          <Ionicons name="search-outline" size={18} color={COLORS.muted} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar producto"
+            placeholderTextColor={COLORS.muted}
+            style={{ flex: 1, color: COLORS.text, paddingVertical: 3 }}
+          />
+        </View>
+        <Text style={styles.section}>Inventario ({filtered.length})</Text>
+        {loading ? <ActivityIndicator color={COLORS.primary} /> : null}
+        {error ? (
+          <Text style={{ color: COLORS.red, marginBottom: 12 }}>{error}</Text>
+        ) : null}
+        {filtered.map((p, i) => (
+          <Pressable
+            key={p.id}
+            onPress={() => open(p)}
+            style={[
+              styles.card,
+              {
+                marginBottom: 10,
+                padding: 14,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+              },
+            ]}
+          >
+            {p.imagen_url ? (
+              <Image
+                source={{ uri: p.imagen_url }}
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 14,
+                  backgroundColor: COLORS.background,
+                }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 15,
+                  backgroundColor: i % 2 ? "#E5EEF9" : COLORS.sky,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons
+                  name="cube-outline"
+                  size={22}
+                  color={i % 2 ? COLORS.navy : COLORS.primary}
+                />
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{ color: COLORS.text, fontSize: 13, fontWeight: "700" }}
+              >
+                {p.nombre}
+              </Text>
+              <Text style={{ color: COLORS.muted, fontSize: 10, marginTop: 4 }}>
+                {p.nombre_categoria || "Producto"} · Ref. {p.id}
+              </Text>
+              <Text
+                style={{
+                  color: Number(p.stock) <= 5 ? COLORS.red : COLORS.muted,
+                  fontSize: 10,
+                  marginTop: 5,
+                }}
+              >
+                Stock: {p.stock}
+              </Text>
+            </View>
+            <Text
+              style={{ color: COLORS.text, fontSize: 12, fontWeight: "800" }}
+            >
+              {money(p.precio)}
+            </Text>
+          </Pressable>
+        ))}
+        {!loading && !filtered.length && !error ? (
+          <Text style={{ color: COLORS.muted }}>
+            No hay productos para mostrar.
+          </Text>
+        ) : null}
+      </Screen>
+      <Modal
+        visible={modal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setModal(false)}
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          style={{ flex: 1, backgroundColor: COLORS.background }}
+          contentContainerStyle={{
+            padding: 20,
+            paddingTop: 28,
+            paddingBottom: 36,
+          }}
+        >
+          <View style={[styles.row, { marginBottom: 18 }]}>
+            <Text
+              style={{ fontSize: 22, fontWeight: "800", color: COLORS.text }}
+            >
+              Editar producto
+            </Text>
+            <Pressable onPress={() => setModal(false)}>
+              <Ionicons name="close" size={24} color={COLORS.text} />
+            </Pressable>
+          </View>
+          {editing?.imagen_url || image?.uri ? (
+            <Image
+              source={{ uri: image?.uri ?? editing?.imagen_url }}
+              resizeMode="cover"
+              style={{
+                height: 170,
+                borderRadius: 18,
+                marginBottom: 12,
+                backgroundColor: COLORS.border,
+              }}
+            />
+          ) : null}
+          <Pressable
+            onPress={chooseImage}
+            style={[
+              styles.card,
+              {
+                marginBottom: 16,
+                padding: 13,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                borderColor: COLORS.primary,
+              },
+            ]}
+          >
+            <Ionicons name="image-outline" size={19} color={COLORS.primary} />
+            <Text
+              style={{ color: COLORS.primary, fontSize: 13, fontWeight: "700" }}
+            >
+              {image ? "Cambiar foto seleccionada" : "Seleccionar foto"}
+            </Text>
+          </Pressable>
+          {image ? (
+            <Pressable
+              onPress={uploadImage}
+              disabled={uploading}
+              style={[
+                styles.button,
+                { marginBottom: 16, opacity: uploading ? 0.6 : 1 },
+              ]}
+            >
+              <Text style={styles.buttonText}>
+                {uploading ? "Subiendo imagen…" : "Subir imagen"}
+              </Text>
+            </Pressable>
+          ) : null}
+          {field("nombre", "Nombre")}
+          <Text style={{ color: COLORS.muted, fontSize: 12, marginBottom: 8 }}>
+            Categoría
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            {categories.map((category) => (
+              <Pressable
+                key={category.categoria_id}
+                onPress={() =>
+                  setForm((f) => ({
+                    ...f,
+                    categoria_id: String(category.categoria_id),
+                  }))
+                }
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 9,
+                  borderRadius: 12,
+                  backgroundColor:
+                    form.categoria_id === String(category.categoria_id)
+                      ? COLORS.primary
+                      : "#E5EEF9",
+                  borderWidth: 1,
+                  borderColor:
+                    form.categoria_id === String(category.categoria_id)
+                      ? COLORS.primary
+                      : COLORS.border,
+                }}
+              >
+                <Text
+                  style={{
+                    color:
+                      form.categoria_id === String(category.categoria_id)
+                        ? "#FFFFFF"
+                        : COLORS.navy,
+                    fontSize: 12,
+                    fontWeight: "600",
+                  }}
+                >
+                  {category.nombre_categoria}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              {field("precio", "Precio", "decimal-pad")}
+            </View>
+            <View style={{ flex: 1 }}>
+              {field("stock", "Stock", "number-pad")}
+            </View>
+          </View>
+          {field("descripcion", "Descripción")}
+          <Pressable onPress={save} style={styles.button}>
+            <Text style={styles.buttonText}>Guardar cambios</Text>
+          </Pressable>
+        </ScrollView>
+      </Modal>
+    </>
+  );
 }

@@ -1,26 +1,376 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, Text, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Screen, styles } from '../components/Screen';
-import { COLORS } from '../constants/theme';
-import { api, money, unwrapList } from '../services/api';
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Screen, styles } from "../components/Screen";
+import { COLORS } from "../constants/theme";
+import { api, money, unwrapList } from "../services/api";
 
 export function OrdersScreen() {
-  const [orders,setOrders]=useState<any[]>([]); const [stats,setStats]=useState<any>({}); const [loading,setLoading]=useState(true); const [error,setError]=useState('');
-  const [formOpen,setFormOpen]=useState(false); const [suppliers,setSuppliers]=useState<any[]>([]); const [categories,setCategories]=useState<any[]>([]); const [form,setForm]=useState({proveedor_id:'',nombre:'',descripcion:'',categoria_id:'',precio:'',stock:''});
-  const load=useCallback(async()=>{setError(''); try {const [o,s]=await Promise.all([api<any>('/pedidos'),api<any>('/pedidos/stats')]);setOrders(unwrapList(o,'pedidos'));setStats(s?.stats??s?.data?.stats??{});}catch(e:any){setError(e.message||'No se pudieron cargar pedidos.');}finally{setLoading(false);}},[]);
-  useEffect(()=>{load();},[load]);
-  const openCreate=async()=>{try{const [s,c]=await Promise.all([api<any>('/proveedores'),api<any>('/categories')]);setSuppliers(unwrapList(s,'proveedores'));setCategories(unwrapList(c,'categories'));setFormOpen(true);}catch(e:any){Alert.alert('No se pudo abrir formulario',e.message);}};
-  const receive= (id:number)=>Alert.alert('Marcar como recibido','¿Confirmas que llegó este pedido?', [{text:'Cancelar',style:'cancel'},{text:'Recibir',onPress:async()=>{try{await api(`/pedidos/${id}/status`,{method:'PUT',body:JSON.stringify({estado:'recibido'})});await load();}catch(e:any){Alert.alert('Error',e.message);}}}]);
-  const create=async()=>{if(!form.proveedor_id||!form.nombre||!form.categoria_id||!form.precio||!form.stock){Alert.alert('Faltan datos','Completa proveedor, producto, categoría, precio y cantidad.');return;}try{const body=new FormData();Object.entries(form).forEach(([k,v])=>body.append(k,v));body.append('total',String(Number(form.precio)*Number(form.stock)));await api('/pedidos',{method:'POST',body});setFormOpen(false);setForm({proveedor_id:'',nombre:'',descripcion:'',categoria_id:'',precio:'',stock:''});await load();}catch(e:any){Alert.alert('No se pudo crear pedido',e.message);}};
-  const selectValue=(label:string,items:any[],value:string,onPick:(v:string)=>void,keyField:string,labelField:string)=> <View style={{marginBottom:12}}><Text style={{color:COLORS.muted,fontSize:12,marginBottom:6}}>{label}</Text><View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>{items.map(x=><Pressable key={x[keyField]} onPress={()=>onPick(String(x[keyField]))} style={{paddingHorizontal:11,paddingVertical:8,borderRadius:12,backgroundColor:value===String(x[keyField])?COLORS.primary:'#E5EEF9'}}><Text style={{color:value===String(x[keyField])?'white':COLORS.navy,fontSize:11}}>{x[labelField]}</Text></Pressable>)}</View></View>;
-  const field=(key:keyof typeof form,placeholder:string,keyboardType:any='default',multiline=false)=><TextInput key={key} value={form[key]} onChangeText={v=>setForm(f=>({...f,[key]:v}))} placeholder={placeholder} placeholderTextColor={COLORS.muted} keyboardType={keyboardType} multiline={multiline} style={[styles.input,{marginBottom:10},multiline?{height:75,textAlignVertical:'top',paddingTop:12}:{}]} />;
-  return <><Screen title="Pedidos" subtitle="Órdenes de compra a proveedores." refreshing={loading} onRefresh={load}>
-    <View style={{flexDirection:'row',gap:9,marginTop:20}}><View style={[styles.card,{flex:1,padding:12}]}><Text style={{color:COLORS.muted,fontSize:11}}>Pendientes</Text><Text style={{color:COLORS.text,fontWeight:'800',fontSize:20,marginTop:4}}>{stats.pedidos_pendientes??orders.filter(o=>o.estado==='pendiente').length}</Text></View><View style={[styles.card,{flex:1,padding:12}]}><Text style={{color:COLORS.muted,fontSize:11}}>Entregados hoy</Text><Text style={{color:COLORS.primary,fontWeight:'800',fontSize:20,marginTop:4}}>{stats.entregados_hoy??0}</Text></View></View>
-    <Pressable onPress={openCreate} style={[styles.button,{marginTop:16,flexDirection:'row',gap:8}]}><Ionicons name="add" size={20} color="white"/><Text style={styles.buttonText}>Nuevo pedido</Text></Pressable>
-    <Text style={styles.section}>Historial de pedidos</Text>{loading?<ActivityIndicator color={COLORS.primary}/>:null}{error?<Text style={{color:COLORS.red,marginBottom:12}}>{error}</Text>:null}
-    {orders.map(order=><Pressable key={order.id} onPress={()=>Alert.alert(`Pedido #${order.id}`,`Proveedor: ${order.nombre_proveedor||order.nombre||'—'}\nFecha: ${order.fecha||'—'}\nEstado: ${order.estado}\nTotal: ${money(order.total)}`)} style={[styles.card,{marginBottom:10,padding:15}]}><View style={styles.row}><Text style={{color:COLORS.primary,fontSize:12,fontWeight:'800'}}>Pedido #{order.id}</Text><Text style={{color:order.estado==='recibido'?COLORS.primary:'#A36C16',fontSize:11,fontWeight:'700'}}>{order.estado}</Text></View><Text style={{color:COLORS.text,fontSize:14,fontWeight:'700',marginTop:9}}>{order.nombre_proveedor||order.nombre||'Proveedor'}</Text><View style={[styles.row,{marginTop:6}]}><Text style={{color:COLORS.muted,fontSize:11}}>{order.fecha?new Date(order.fecha).toLocaleDateString('es-CO'):'—'}</Text><Text style={{color:COLORS.text,fontWeight:'800',fontSize:13}}>{money(order.total)}</Text></View>{order.estado!=='recibido'?<Pressable onPress={()=>receive(order.id)} style={{alignSelf:'flex-end',marginTop:10,paddingVertical:7,paddingHorizontal:12,backgroundColor:'#E5EEF9',borderRadius:10}}><Text style={{color:COLORS.navy,fontWeight:'700',fontSize:11}}>Marcar recibido</Text></Pressable>:null}</Pressable>)}
-    {!loading&&!orders.length&&!error?<Text style={{color:COLORS.muted}}>No hay pedidos registrados.</Text>:null}
-  </Screen>
-  <Modal visible={formOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={()=>setFormOpen(false)}><View style={{flex:1,backgroundColor:COLORS.background,padding:20,paddingTop:28}}><View style={[styles.row,{marginBottom:18}]}><Text style={{fontSize:22,fontWeight:'800',color:COLORS.text}}>Nuevo pedido</Text><Pressable onPress={()=>setFormOpen(false)}><Ionicons name="close" size={24} color={COLORS.text}/></Pressable></View><Text style={{color:COLORS.muted,fontSize:12,marginBottom:6}}>Proveedor</Text>{selectValue('Proveedor',suppliers,form.proveedor_id,v=>setForm(f=>({...f,proveedor_id:v})),'id','nombre')}{field('nombre','Nombre del producto')}{field('descripcion','Descripción','default',true)}{selectValue('Categoría',categories,form.categoria_id,v=>setForm(f=>({...f,categoria_id:v})),'categoria_id','nombre_categoria')}<View style={{flexDirection:'row',gap:8}}><View style={{flex:1}}>{field('precio','Precio','decimal-pad')}</View><View style={{flex:1}}>{field('stock','Cantidad','number-pad')}</View></View><Pressable onPress={create} style={styles.button}><Text style={styles.buttonText}>Crear pedido</Text></Pressable></View></Modal></>;
+  const [orders, setOrders] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [form, setForm] = useState({
+    proveedor_id: "",
+    nombre: "",
+    descripcion: "",
+    categoria_id: "",
+    precio: "",
+    stock: "",
+  });
+  const load = useCallback(async () => {
+    setError("");
+    try {
+      const [o, s] = await Promise.all([
+        api<any>("/pedidos"),
+        api<any>("/pedidos/stats"),
+      ]);
+      setOrders(unwrapList(o, "pedidos"));
+      setStats(s?.stats ?? s?.data?.stats ?? {});
+    } catch (e: any) {
+      setError(e.message || "No se pudieron cargar pedidos.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+  const openCreate = async () => {
+    try {
+      const [s, c] = await Promise.all([
+        api<any>("/proveedores"),
+        api<any>("/categories"),
+      ]);
+      setSuppliers(unwrapList(s, "proveedores"));
+      setCategories(unwrapList(c, "categories"));
+      setFormOpen(true);
+    } catch (e: any) {
+      Alert.alert("No se pudo abrir formulario", e.message);
+    }
+  };
+  const receive = (id: number) =>
+    Alert.alert("Marcar como recibido", "¿Confirmas que llegó este pedido?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Recibir",
+        onPress: async () => {
+          try {
+            await api(`/pedidos/${id}/status`, {
+              method: "PUT",
+              body: JSON.stringify({ estado: "recibido" }),
+            });
+            await load();
+          } catch (e: any) {
+            Alert.alert("Error", e.message);
+          }
+        },
+      },
+    ]);
+  const create = async () => {
+    if (
+      !form.proveedor_id ||
+      !form.nombre ||
+      !form.categoria_id ||
+      !form.precio ||
+      !form.stock
+    ) {
+      Alert.alert(
+        "Faltan datos",
+        "Completa proveedor, producto, categoría, precio y cantidad.",
+      );
+      return;
+    }
+    try {
+      const body = new FormData();
+      Object.entries(form).forEach(([k, v]) => body.append(k, v));
+      body.append("total", String(Number(form.precio) * Number(form.stock)));
+      await api("/pedidos", { method: "POST", body });
+      setFormOpen(false);
+      setForm({
+        proveedor_id: "",
+        nombre: "",
+        descripcion: "",
+        categoria_id: "",
+        precio: "",
+        stock: "",
+      });
+      await load();
+    } catch (e: any) {
+      Alert.alert("No se pudo crear pedido", e.message);
+    }
+  };
+  const selectValue = (
+    label: string,
+    items: any[],
+    value: string,
+    onPick: (v: string) => void,
+    keyField: string,
+    labelField: string,
+  ) => (
+    <View style={{ marginBottom: 12 }}>
+      <Text style={{ color: COLORS.muted, fontSize: 12, marginBottom: 6 }}>
+        {label}
+      </Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+        {items.map((x) => (
+          <Pressable
+            key={x[keyField]}
+            onPress={() => onPick(String(x[keyField]))}
+            style={{
+              paddingHorizontal: 11,
+              paddingVertical: 8,
+              borderRadius: 12,
+              backgroundColor:
+                value === String(x[keyField]) ? COLORS.primary : "#E5EEF9",
+            }}
+          >
+            <Text
+              style={{
+                color: value === String(x[keyField]) ? "white" : COLORS.navy,
+                fontSize: 11,
+              }}
+            >
+              {x[labelField]}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+  const field = (
+    key: keyof typeof form,
+    placeholder: string,
+    keyboardType: any = "default",
+    multiline = false,
+  ) => (
+    <TextInput
+      key={key}
+      value={form[key]}
+      onChangeText={(v) => setForm((f) => ({ ...f, [key]: v }))}
+      placeholder={placeholder}
+      placeholderTextColor={COLORS.muted}
+      keyboardType={keyboardType}
+      multiline={multiline}
+      style={[
+        styles.input,
+        { marginBottom: 10 },
+        multiline
+          ? { height: 75, textAlignVertical: "top", paddingTop: 12 }
+          : {},
+      ]}
+    />
+  );
+  return (
+    <>
+      <Screen
+        title="Pedidos"
+        subtitle="Órdenes de compra a proveedores."
+        refreshing={loading}
+        onRefresh={load}
+      >
+        <View style={{ flexDirection: "row", gap: 9, marginTop: 20 }}>
+          <View style={[styles.card, { flex: 1, padding: 12 }]}>
+            <Text style={{ color: COLORS.muted, fontSize: 11 }}>
+              Pendientes
+            </Text>
+            <Text
+              style={{
+                color: COLORS.text,
+                fontWeight: "800",
+                fontSize: 20,
+                marginTop: 4,
+              }}
+            >
+              {stats.pedidos_pendientes ??
+                orders.filter((o) => o.estado === "pendiente").length}
+            </Text>
+          </View>
+          <View style={[styles.card, { flex: 1, padding: 12 }]}>
+            <Text style={{ color: COLORS.muted, fontSize: 11 }}>
+              Entregados hoy
+            </Text>
+            <Text
+              style={{
+                color: COLORS.primary,
+                fontWeight: "800",
+                fontSize: 20,
+                marginTop: 4,
+              }}
+            >
+              {stats.entregados_hoy ?? 0}
+            </Text>
+          </View>
+        </View>
+        <Pressable
+          onPress={openCreate}
+          style={[
+            styles.button,
+            { marginTop: 16, flexDirection: "row", gap: 8 },
+          ]}
+        >
+          <Ionicons name="add" size={20} color="white" />
+          <Text style={styles.buttonText}>Nuevo pedido</Text>
+        </Pressable>
+        <Text style={styles.section}>Historial de pedidos</Text>
+        {loading ? <ActivityIndicator color={COLORS.primary} /> : null}
+        {error ? (
+          <Text style={{ color: COLORS.red, marginBottom: 12 }}>{error}</Text>
+        ) : null}
+        {orders.map((order) => (
+          <Pressable
+            key={order.id}
+            onPress={() =>
+              Alert.alert(
+                `Pedido #${order.id}`,
+                `Proveedor: ${order.nombre_proveedor || order.nombre || "—"}\nFecha: ${order.fecha || "—"}\nEstado: ${order.estado}\nTotal: ${money(order.total)}`,
+              )
+            }
+            style={[styles.card, { marginBottom: 10, padding: 15 }]}
+          >
+            <View style={styles.row}>
+              <Text
+                style={{
+                  color: COLORS.primary,
+                  fontSize: 12,
+                  fontWeight: "800",
+                }}
+              >
+                Pedido #{order.id}
+              </Text>
+              <Text
+                style={{
+                  color:
+                    order.estado === "recibido" ? COLORS.primary : "#A36C16",
+                  fontSize: 11,
+                  fontWeight: "700",
+                }}
+              >
+                {order.estado}
+              </Text>
+            </View>
+            <Text
+              style={{
+                color: COLORS.text,
+                fontSize: 14,
+                fontWeight: "700",
+                marginTop: 9,
+              }}
+            >
+              {order.nombre_proveedor || order.nombre || "Proveedor"}
+            </Text>
+            <View style={[styles.row, { marginTop: 6 }]}>
+              <Text style={{ color: COLORS.muted, fontSize: 11 }}>
+                {order.fecha
+                  ? new Date(order.fecha).toLocaleDateString("es-CO")
+                  : "—"}
+              </Text>
+              <Text
+                style={{ color: COLORS.text, fontWeight: "800", fontSize: 13 }}
+              >
+                {money(order.total)}
+              </Text>
+            </View>
+            {order.estado !== "recibido" ? (
+              <Pressable
+                onPress={() => receive(order.id)}
+                style={{
+                  alignSelf: "flex-end",
+                  marginTop: 10,
+                  paddingVertical: 7,
+                  paddingHorizontal: 12,
+                  backgroundColor: "#E5EEF9",
+                  borderRadius: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    color: COLORS.navy,
+                    fontWeight: "700",
+                    fontSize: 11,
+                  }}
+                >
+                  Marcar recibido
+                </Text>
+              </Pressable>
+            ) : null}
+          </Pressable>
+        ))}
+        {!loading && !orders.length && !error ? (
+          <Text style={{ color: COLORS.muted }}>
+            No hay pedidos registrados.
+          </Text>
+        ) : null}
+      </Screen>
+      <Modal
+        visible={formOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setFormOpen(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: COLORS.background,
+            padding: 20,
+            paddingTop: 28,
+          }}
+        >
+          <View style={[styles.row, { marginBottom: 18 }]}>
+            <Text
+              style={{ fontSize: 22, fontWeight: "800", color: COLORS.text }}
+            >
+              Nuevo pedido
+            </Text>
+            <Pressable onPress={() => setFormOpen(false)}>
+              <Ionicons name="close" size={24} color={COLORS.text} />
+            </Pressable>
+          </View>
+          <Text style={{ color: COLORS.muted, fontSize: 12, marginBottom: 6 }}>
+            Proveedor
+          </Text>
+          {selectValue(
+            "Proveedor",
+            suppliers,
+            form.proveedor_id,
+            (v) => setForm((f) => ({ ...f, proveedor_id: v })),
+            "id",
+            "nombre",
+          )}
+          {field("nombre", "Nombre del producto")}
+          {field("descripcion", "Descripción", "default", true)}
+          {selectValue(
+            "Categoría",
+            categories,
+            form.categoria_id,
+            (v) => setForm((f) => ({ ...f, categoria_id: v })),
+            "categoria_id",
+            "nombre_categoria",
+          )}
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              {field("precio", "Precio", "decimal-pad")}
+            </View>
+            <View style={{ flex: 1 }}>
+              {field("stock", "Cantidad", "number-pad")}
+            </View>
+          </View>
+          <Pressable onPress={create} style={styles.button}>
+            <Text style={styles.buttonText}>Crear pedido</Text>
+          </Pressable>
+        </View>
+      </Modal>
+    </>
+  );
 }

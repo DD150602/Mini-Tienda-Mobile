@@ -47,8 +47,16 @@ export function Screen({
             <Text style={s.brand}>VARIEDADES DAKOTA</Text>
             <Text style={s.caption}>Sistema de gestión</Text>
           </View>
-          <Pressable onPress={() => void logout()} style={s.avatar} accessibilityLabel="Cerrar sesión">
-            <Ionicons name="log-out-outline" size={20} color={COLORS.primaryDark} />
+          <Pressable
+            onPress={() => void logout()}
+            style={s.avatar}
+            accessibilityLabel="Cerrar sesión"
+          >
+            <Ionicons
+              name="log-out-outline"
+              size={20}
+              color={COLORS.primaryDark}
+            />
           </Pressable>
         </View>
         <Text style={s.title}>{title}</Text>

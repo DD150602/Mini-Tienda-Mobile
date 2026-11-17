@@ -54,11 +54,11 @@ El backend debe escuchar en puerto `4000` y el Firewall de Windows debe permitir
 
 - Inicio: indicadores del negocio.
 - Pedidos: historial, detalle, crear pedido y marcar como recibido.
-- Productos: listado, búsqueda y edición de información.
+- Productos: listado, búsqueda, edición de información, selector de categoría e imagen desde galería.
 - Clientes: listado, búsqueda, creación, edición, eliminación y gestión de saldos (cobrar/fiar).
 - Proveedores: listado, estadísticas, creación, edición y eliminación.
 
-Datos y operaciones vienen de la API; no se incluyen datos demo de respaldo. El módulo de ventas no está implementado en la app ni tiene flujo funcional en el frontend web actual. La subida de imágenes y autenticación móvil quedan pendientes.
+Datos y operaciones vienen de la API; no se incluyen datos demo de respaldo. El módulo de ventas no está implementado en la app ni tiene flujo funcional en el frontend web actual. La autenticación móvil queda pendiente.
 
 ## Estructura
 

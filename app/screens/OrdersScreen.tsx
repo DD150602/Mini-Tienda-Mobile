@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Modal,
@@ -17,6 +17,8 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { Screen, styles } from "../components/Screen";
 import { COLORS } from "../constants/theme";
 import { api, money, unwrapList } from "../services/api";
+import { LoadingIndicator } from "../components/LoadingIndicator";
+import { BouncePressable } from "../components/BouncePressable";
 import {
   findLocalBarcodeProduct,
   saveLocalBarcodeProduct,
@@ -63,9 +65,7 @@ export function OrdersScreen() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   const openCreate = async () => {
     try {
       const [s, c] = await Promise.all([
@@ -369,7 +369,7 @@ export function OrdersScreen() {
           <Text style={styles.buttonText}>Nuevo pedido</Text>
         </Pressable>
         <Text style={styles.section}>Historial de pedidos</Text>
-        {loading ? <ActivityIndicator color={COLORS.primary} /> : null}
+        {loading ? <LoadingIndicator color={COLORS.primary} /> : null}
         {error ? (
           <Text style={{ color: COLORS.red, marginBottom: 12 }}>{error}</Text>
         ) : null}
@@ -636,7 +636,7 @@ export function OrdersScreen() {
               </Pressable>
             ) : null}
           </View>
-          <Pressable
+          <BouncePressable
             onPress={create}
             disabled={creating}
             style={[styles.button, { opacity: creating ? 0.6 : 1 }]}
@@ -644,7 +644,7 @@ export function OrdersScreen() {
             <Text style={styles.buttonText}>
               {creating ? "Creando pedido…" : "Crear pedido"}
             </Text>
-          </Pressable>
+          </BouncePressable>
         </ScrollView>
       </Modal>
       <Modal
@@ -788,7 +788,7 @@ export function OrdersScreen() {
             </Pressable>
           </View>
           {detailLoading ? (
-            <ActivityIndicator color={COLORS.primary} />
+            <LoadingIndicator color={COLORS.primary} />
           ) : selectedOrder ? (
             <>
               <View style={styles.card}>

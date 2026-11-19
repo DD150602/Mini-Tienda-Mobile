@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
-  ActivityIndicator,
   Alert,
+  LayoutAnimation,
   Modal,
   Pressable,
   ScrollView,
@@ -12,6 +13,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Screen, styles } from "../components/Screen";
+import { BouncePressable } from "../components/BouncePressable";
+import { LoadingIndicator } from "../components/LoadingIndicator";
 import { COLORS } from "../constants/theme";
 import { api, money, unwrapList } from "../services/api";
 
@@ -91,9 +94,7 @@ export function SalesScreen() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const total = useMemo(
     () =>
@@ -156,6 +157,7 @@ export function SalesScreen() {
       );
       return;
     }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setCart((current) =>
       found
         ? current.map((item) =>
@@ -221,7 +223,8 @@ export function SalesScreen() {
     addProduct(product);
     setBarcodeAssignOpen(false);
   };
-  const adjustQuantity = (productId: number, delta: number) =>
+  const adjustQuantity = (productId: number, delta: number) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setCart((current) =>
       current.flatMap((item) => {
         if (item.producto_id !== productId) return [item];
@@ -233,6 +236,7 @@ export function SalesScreen() {
             : [{ ...item, cantidad: quantity }];
       }),
     );
+  };
 
   const saveSale = async () => {
     if (!paymentId) {
@@ -351,7 +355,7 @@ export function SalesScreen() {
             </View>
           ))}
         </View>
-        <Pressable
+        <BouncePressable
           onPress={openSale}
           style={[
             styles.button,
@@ -360,9 +364,9 @@ export function SalesScreen() {
         >
           <Ionicons name="cart-outline" size={19} color="#fff" />
           <Text style={styles.buttonText}>Nueva venta</Text>
-        </Pressable>
+        </BouncePressable>
         <Text style={styles.section}>Historial de ventas</Text>
-        {loading ? <ActivityIndicator color={COLORS.primary} /> : null}
+        {loading ? <LoadingIndicator color={COLORS.primary} /> : null}
         {error ? (
           <Text style={{ color: COLORS.red, marginBottom: 12 }}>{error}</Text>
         ) : null}
@@ -572,7 +576,7 @@ export function SalesScreen() {
           <View style={{ maxHeight: 210 }}>
             <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
               {availableProducts.map((product) => (
-                <Pressable
+                <BouncePressable
                   key={product.id}
                   onPress={() => addProduct(product)}
                   style={[
@@ -611,7 +615,7 @@ export function SalesScreen() {
                     size={24}
                     color={COLORS.primary}
                   />
-                </Pressable>
+                </BouncePressable>
               ))}
               {!availableProducts.length ? (
                 <Text style={{ color: COLORS.muted, padding: 8 }}>
@@ -709,7 +713,7 @@ export function SalesScreen() {
               </View>
             ) : null}
           </View>
-          <Pressable
+          <BouncePressable
             onPress={saveSale}
             disabled={saving}
             style={[
@@ -720,7 +724,7 @@ export function SalesScreen() {
             <Text style={styles.buttonText}>
               {saving ? "Registrando venta…" : "Registrar venta"}
             </Text>
-          </Pressable>
+          </BouncePressable>
         </ScrollView>
       </Modal>
 
@@ -977,7 +981,7 @@ export function SalesScreen() {
             </Pressable>
           </View>
           {saleDetailsLoading ? (
-            <ActivityIndicator color={COLORS.primary} />
+            <LoadingIndicator color={COLORS.primary} />
           ) : selectedSale ? (
             <>
               <View style={styles.card}>

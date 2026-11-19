@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
-  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -13,6 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Screen, styles } from "../components/Screen";
 import { COLORS } from "../constants/theme";
 import { api, money, unwrapList } from "../services/api";
+import { LoadingIndicator } from "../components/LoadingIndicator";
+import { BouncePressable } from "../components/BouncePressable";
 type Supplier = { nombre: string; empresa: string; telefono: string };
 const empty: Supplier = { nombre: "", empresa: "", telefono: "" };
 export function SuppliersScreen() {
@@ -55,9 +57,7 @@ export function SuppliersScreen() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   const filteredItems = items.filter((supplier) =>
     `${supplier.nombre} ${supplier.empresa} ${supplier.telefono}`
       .toLowerCase()
@@ -219,7 +219,7 @@ export function SuppliersScreen() {
           />
         </View>
         <Text style={styles.section}>Lista de proveedores</Text>
-        {loading ? <ActivityIndicator color={COLORS.primary} /> : null}
+        {loading ? <LoadingIndicator color={COLORS.primary} /> : null}
         {error ? <Text style={{ color: COLORS.red }}>{error}</Text> : null}
         {filteredItems.map((s) => (
           <View
@@ -353,11 +353,11 @@ export function SuppliersScreen() {
           {field("nombre", "Nombre del proveedor")}
           {field("empresa", "Persona de contacto")}
           {field("telefono", "Teléfono", "phone-pad")}
-          <Pressable onPress={save} style={styles.button}>
+          <BouncePressable onPress={save} style={styles.button}>
             <Text style={styles.buttonText}>
               {editing ? "Guardar cambios" : "Crear proveedor"}
             </Text>
-          </Pressable>
+          </BouncePressable>
         </View>
       </Modal>
       <Modal
@@ -419,7 +419,7 @@ export function SuppliersScreen() {
               </View>
               <Text style={styles.section}>Historial de pedidos</Text>
               {detailLoading ? (
-                <ActivityIndicator color={COLORS.primary} />
+                <LoadingIndicator color={COLORS.primary} />
               ) : null}
               {detailError ? (
                 <Text style={{ color: COLORS.red, marginBottom: 12 }}>

@@ -6,11 +6,17 @@ type AuthValue = { user: User | null; loading: boolean; login: (correo: string, 
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const demoMode = process.env.EXPO_PUBLIC_DEMO_MODE !== "false";
+  const [user, setUser] = useState<User | null>(demoMode ? {
+    id: 1,
+    nombre_completo: "Admin Demo",
+    correo: "demo@minitienda.local",
+  } : null);
+  const [loading, setLoading] = useState(!demoMode);
   useEffect(() => {
+    if (demoMode) return;
     api<any>("/users/me").then((result) => setUser(result?.user ?? null)).catch(() => setUser(null)).finally(() => setLoading(false));
-  }, []);
+  }, [demoMode]);
   const login = useCallback(async (correo: string, contrasena: string) => {
     const result = await api<any>("/users/login", { method: "POST", body: JSON.stringify({ correo, contrasena }) });
     const loggedUser = result?.user ?? result?.data?.user;
@@ -18,8 +24,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(loggedUser);
   }, []);
   const logout = useCallback(async () => {
+    if (demoMode) return;
     try { await api("/users/logout", { method: "POST" }); } finally { setUser(null); }
-  }, []);
+  }, [demoMode]);
   return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>;
 }
 

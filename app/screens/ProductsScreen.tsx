@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Modal,
@@ -16,6 +16,8 @@ import { File } from "expo-file-system";
 import { Screen, styles } from "../components/Screen";
 import { COLORS } from "../constants/theme";
 import { api, money, unwrapList } from "../services/api";
+import { LoadingIndicator } from "../components/LoadingIndicator";
+import { BouncePressable } from "../components/BouncePressable";
 type ProductForm = {
   nombre: string;
   categoria_id: string;
@@ -59,9 +61,7 @@ export function ProductsScreen() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   const filtered = useMemo(
     () =>
       products.filter((p) =>
@@ -229,7 +229,7 @@ export function ProductsScreen() {
           />
         </View>
         <Text style={styles.section}>Inventario ({filtered.length})</Text>
-        {loading ? <ActivityIndicator color={COLORS.primary} /> : null}
+        {loading ? <LoadingIndicator color={COLORS.primary} /> : null}
         {error ? (
           <Text style={{ color: COLORS.red, marginBottom: 12 }}>{error}</Text>
         ) : null}
@@ -441,9 +441,9 @@ export function ProductsScreen() {
             </View>
           </View>
           {field("descripcion", "Descripción")}
-          <Pressable onPress={save} style={styles.button}>
+          <BouncePressable onPress={save} style={styles.button}>
             <Text style={styles.buttonText}>Guardar cambios</Text>
-          </Pressable>
+          </BouncePressable>
         </ScrollView>
       </Modal>
     </>

@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Animated,
   ActivityIndicator,
   Pressable,
   RefreshControl,
@@ -12,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/theme";
 import { useAuth } from "../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
+import { DEMO_MODE } from "../services/api";
 
 export function Screen({
   title,
@@ -27,6 +29,14 @@ export function Screen({
   onRefresh?: () => void;
 }) {
   const { logout } = useAuth();
+  const enterAnim = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    Animated.timing(enterAnim, {
+      toValue: 1,
+      duration: 260,
+      useNativeDriver: true,
+    }).start();
+  }, [enterAnim]);
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScrollView
@@ -45,7 +55,9 @@ export function Screen({
         <View style={s.top}>
           <View>
             <Text style={s.brand}>VARIEDADES DAKOTA</Text>
-            <Text style={s.caption}>Sistema de gestión</Text>
+            <Text style={s.caption}>
+              {DEMO_MODE ? "Modo demo · datos locales" : "Sistema de gestión"}
+            </Text>
           </View>
           <Pressable
             onPress={() => void logout()}
@@ -61,7 +73,21 @@ export function Screen({
         </View>
         <Text style={s.title}>{title}</Text>
         <Text style={s.subtitle}>{subtitle}</Text>
-        {children}
+        <Animated.View
+          style={{
+            opacity: enterAnim,
+            transform: [
+              {
+                translateY: enterAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [10, 0],
+                }),
+              },
+            ],
+          }}
+        >
+          {children}
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );

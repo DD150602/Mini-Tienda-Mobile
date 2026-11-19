@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen, styles } from "../components/Screen";
 import { COLORS } from "../constants/theme";
 import { api, money } from "../services/api";
+import { LoadingIndicator } from "../components/LoadingIndicator";
 
 const initial = {
   ventas: { valor: 0, variacion: 0 },
@@ -26,9 +28,7 @@ export function DashboardScreen() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   const cards = [
     {
       label: "Ventas del mes",
@@ -67,7 +67,7 @@ export function DashboardScreen() {
       onRefresh={load}
     >
       {loading ? (
-        <ActivityIndicator color={COLORS.primary} style={{ marginTop: 24 }} />
+        <LoadingIndicator color={COLORS.primary} style={{ marginTop: 24 }} />
       ) : null}
       {error ? (
         <Text style={{ color: COLORS.red, marginTop: 16 }}>{error}</Text>

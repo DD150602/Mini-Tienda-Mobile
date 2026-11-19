@@ -1,4 +1,8 @@
 import { fetch as expoFetch } from "expo/fetch";
+import { mockApi } from "./mockApi";
+
+// Demo mode is the safe default for local previews and APK builds.
+export const DEMO_MODE = process.env.EXPO_PUBLIC_DEMO_MODE !== "false";
 
 const API_BASE =
   process.env.EXPO_PUBLIC_API_BASE_URL || "http://10.0.2.2:4000/api";
@@ -7,6 +11,8 @@ export async function api<T = any>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  if (DEMO_MODE) return mockApi(path, options) as Promise<T>;
+
   const response = await expoFetch(`${API_BASE}${path}`, {
     ...options,
     credentials: "include",

@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
-  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -12,6 +12,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Screen, styles } from "../components/Screen";
 import { COLORS } from "../constants/theme";
 import { api, money, unwrapList } from "../services/api";
+import { LoadingIndicator } from "../components/LoadingIndicator";
+import { BouncePressable } from "../components/BouncePressable";
 
 type ClientForm = {
   nombre: string;
@@ -47,9 +49,7 @@ export function ClientsScreen() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   const filtered = useMemo(
     () =>
       clients.filter((c) =>
@@ -227,7 +227,7 @@ export function ClientsScreen() {
             <Ionicons name="person-add-outline" size={18} color="white" />
           </Pressable>
         </View>
-        {loading ? <ActivityIndicator color={COLORS.primary} /> : null}
+        {loading ? <LoadingIndicator color={COLORS.primary} /> : null}
         {error ? (
           <Text style={{ color: COLORS.red, marginBottom: 12 }}>{error}</Text>
         ) : null}
@@ -375,11 +375,11 @@ export function ClientsScreen() {
           {field("telefono", "Teléfono", "phone-pad")}
           {field("correo", "Correo electrónico", "email-address")}
           {field("direccion", "Dirección")}
-          <Pressable onPress={save} style={styles.button}>
+          <BouncePressable onPress={save} style={styles.button}>
             <Text style={styles.buttonText}>
               {editing ? "Guardar cambios" : "Crear cliente"}
             </Text>
-          </Pressable>
+          </BouncePressable>
         </View>
       </Modal>
       <Modal
